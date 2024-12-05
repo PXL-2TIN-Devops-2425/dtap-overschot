@@ -65,8 +65,23 @@ pipeline {
 
         stage('Deployment') {
             steps {
-                // Start the Docker container on port 3000
-                sh "docker run -d -p 3000:3000 ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
+                script {
+                    // Controleer of er al een container draait van deze image
+                    sh """
+                        CONTAINER_ID=\$(docker ps -q --filter ancestor=${DOCKER_IMAGE_NAME}:${DOCKER_TAG})
+                        if [ ! -z "\$CONTAINER_ID" ]; then
+                            echo "Stopping and removing existing container..."
+                            docker stop \$CONTAINER_ID
+                            docker rm \$CONTAINER_ID
+                        fi
+                    """
+        
+                    // Start de nieuwe container op poort 3000
+                    sh """
+                        echo "Running the Docker container from Docker Hub..."
+                        docker run -d -p 3000:3000 ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}
+                    """
+                }
             }
         }
     }
