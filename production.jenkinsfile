@@ -9,6 +9,28 @@ pipeline {
     }
 
     stages {
+        stage('Cleanup') {
+            steps {
+                script {
+                    // Verbind via SSH met de remote server om oude containers, netwerken en ongebruikte afbeeldingen te verwijderen
+                    sshagent(['key-opdracht6']) {
+                        // Verwijder oude containers die niet meer in gebruik zijn
+                        sh """
+                            ssh ${PROD_SERVER} 'docker rm -f ${CONTAINER_NAME} || true'
+                        """
+                        // Verwijder ongebruikte afbeeldingen (doodgaan images, niet gebruikte containers)
+                        sh """
+                            ssh ${PROD_SERVER} 'docker image prune -af'
+                        """
+                        // Verwijder ongebruikte volumes (indien van toepassing)
+                        sh """
+                            ssh ${PROD_SERVER} 'docker volume prune -f'
+                        """
+                    }
+                }
+            }
+        }
+
         stage('Deploy Prod') {
             steps {
                 script {
@@ -53,7 +75,6 @@ pipeline {
                 }
             }
         }
-
     }
 
     post {
