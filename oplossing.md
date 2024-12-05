@@ -132,7 +132,7 @@ Start de nieuwe container op de Productieserver op poort 80:
 4. Test Prod
 
 Controleert of de applicatie draait door een HTTP-statuscode 200 te valideren:
-  def response = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://3.91.218.68:${REMOTE_PORT}", returnStdout: true).trim()
+  def response = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://54.234.226.27:${REMOTE_PORT}", returnStdout: true).trim()
   if (response == '200') {
       echo 'Applicatie draait succesvol op productie server.'
   } else {
