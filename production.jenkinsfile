@@ -33,7 +33,7 @@ pipeline {
                     // Verbind via SSH en start de container op de remote server
                     sshagent(['key-opdracht6']) {
                         sh """
-                            ssh ${PROD_SERVER} 'docker run -d --name ${CONTAINER_NAME} -p ${REMOTE_PORT}:80 ${DOCKER_IMAGE}'
+                            ssh ${PROD_SERVER} 'docker run -d --name ${CONTAINER_NAME} -p ${REMOTE_PORT}:3000 ${DOCKER_IMAGE}'
                         """
                     }
                 }
