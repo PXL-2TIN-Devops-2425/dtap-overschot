@@ -14,6 +14,9 @@ pipeline {
                 script {
                     // Verbind via SSH met de remote server om oude containers, netwerken en ongebruikte afbeeldingen te verwijderen
                     sshagent(['key-opdracht6']) {
+                        // Add the host key to known_hosts (avoid SSH verification issues)
+                        sh "ssh-keyscan -H 54.234.226.27 >> ~/.ssh/known_hosts"
+
                         // Verwijder oude containers die niet meer in gebruik zijn
                         sh """
                             ssh ${PROD_SERVER} 'docker rm -f ${CONTAINER_NAME} || true'
