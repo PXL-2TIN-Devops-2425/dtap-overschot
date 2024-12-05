@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        PROD_SERVER = 'ubuntu@3.91.218.68' // Vervang met je productie IP of DNS naam
+        PROD_SERVER = 'ubuntu@3.91.218.68' // productie public IP 
         DOCKER_IMAGE = 'timohubner431/my-app:latest' // Docker Hub afbeelding naam
         CONTAINER_NAME = 'prod-container' // Naam van de container
         REMOTE_PORT = '80' // Poort waarop de app draait
@@ -18,11 +18,11 @@ pipeline {
                         sh """
                             ssh ${PROD_SERVER} 'docker rm -f ${CONTAINER_NAME} || true'
                         """
-                        // Verwijder ongebruikte afbeeldingen (doodgaan images, niet gebruikte containers)
+                        // Verwijder ongebruikte afbeeldingen, niet gebruikte containers
                         sh """
                             ssh ${PROD_SERVER} 'docker image prune -af'
                         """
-                        // Verwijder ongebruikte volumes (indien van toepassing)
+                        // Verwijder ongebruikte volumes (als het nodig zou zijn)
                         sh """
                             ssh ${PROD_SERVER} 'docker volume prune -f'
                         """
@@ -65,7 +65,7 @@ pipeline {
         stage('Test Prod') {
             steps {
                 script {
-                    // Test of de applicatie draait door een eenvoudige HTTP check
+                    // Test of de applicatie draait door een HTTP check
                     def response = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://3.91.218.68:${REMOTE_PORT}", returnStdout: true).trim()
                     if (response == '200') {
                         echo 'Applicatie draait succesvol op productie server.'
