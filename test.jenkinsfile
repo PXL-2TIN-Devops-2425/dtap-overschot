@@ -6,26 +6,26 @@ pipeline {
     environment {
         HOME_FOLDER = "/var/lib/jenkins"
         ERROR_LOG = "${HOME_FOLDER}/jenkinserrorlog"
-        DOCKER_IMAGE_NAME = "timohubner431/my-app"  // Zorg ervoor dat de naam klopt
+        DOCKER_IMAGE_NAME = "timohubner431/my-app"  // Make sure the name is correct
         DOCKER_TAG = "latest"
     }
     stages {
         stage('Cleanup') {
             steps {
-                deleteDir()  // Verwijdert de inhoud van de workspace
+                deleteDir()  // Cleans the workspace
             }
         }
-        
+
         stage('Clone Repository') {
             steps {
                 git branch: 'main', url: 'https://github.com/TimoHubner444/calculator-app-finished.git'
             }
         }
-        
+
         stage('Install dependencies') {
             steps {
                 script {
-                    // Gebruik van de vooraf gedefinieerde Node.js tool
+                    // Use predefined Node.js tool
                     sh 'npm install'
                 }
             }
@@ -34,7 +34,7 @@ pipeline {
         stage('Build artifact') {
             steps {
                 script {
-                    // Zorg ervoor dat je een werkende Dockerfile hebt voordat je de container bouwt
+                    // Ensure you have a working Dockerfile before building the container
                     sh "docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} ."
                 }
             }
@@ -43,8 +43,8 @@ pipeline {
         stage('Login to Docker Hub') {
             steps {
                 script {
-                    // Login naar Docker Hub met opgeslagen credentials
-                    docker.withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    // Use withCredentials to pass Docker Hub credentials securely
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                         sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
                     }
                 }
@@ -54,10 +54,10 @@ pipeline {
         stage('Push Artifact') {
             steps {
                 script {
-                    // Tag de image met de naam van de Docker Hub repository
+                    // Tag the image with the Docker Hub repository name
                     sh "docker tag ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
 
-                    // Push de image naar Docker Hub
+                    // Push the image to Docker Hub
                     sh "docker push ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
                 }
             }
@@ -65,7 +65,7 @@ pipeline {
 
         stage('Deployment') {
             steps {
-                // Start de Docker container op poort 3000
+                // Start the Docker container on port 3000
                 sh "docker run -d -p 3000:3000 ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
             }
         }
