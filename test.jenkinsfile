@@ -1,6 +1,8 @@
 pipeline {
     agent any
-    
+    tools {
+        nodejs 'testenvnode' 
+    }
     environment {
         DOCKER_IMAGE = 'timohubner431/my-app'  // Replace with actual DockerHub repository
     }
@@ -21,14 +23,7 @@ pipeline {
         
         stage('Install dependencies') {
             steps {
-                // Install NodeJS dependencies using the global tool configuration 'testenvnode'
-                script {
-                    // Get the path to the Node.js installation using the tool name
-                    def nodeVersion = tool name: 'testenvnode', type: 'NodeJS'
-                    
-                    // Run 'npm install' using the Node.js installation path
-                    sh "${nodeVersion}/bin/npm install"
-                }
+                sh 'npm install'
             }
         }
         
