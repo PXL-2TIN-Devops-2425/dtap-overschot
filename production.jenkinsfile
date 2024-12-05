@@ -1,10 +1,93 @@
 pipeline {
     agent any
+
+    environment {
+        // Definieer de variabelen voor de server en Docker image
+        PROD_SERVER = 'ubuntu@3.91.218.68'
+        DOCKER_IMAGE = 'timohubner431/my-app:latest'
+        DOCKER_PORT = '80'
+        CONTAINER_NAME = 'prod-container'  // Naam van de Docker container
+    }
+
     stages {
-        stage('dtap production') {
+        stage('Deploy Prod') {
             steps {
-                echo "good luck..."
+                script {
+                    // Haal de laatste versie van de Docker container
+                    sshagent(['key-opdracht6']) {
+                        sh """
+                            ssh ${PROD_SERVER} 'docker pull ${DOCKER_IMAGE}'
+                        """
+                    }
+                }
             }
+        }
+
+        stage('Stop and Remove Old Container') {
+            steps {
+                script {
+                    // Stop en verwijder een oude container (indien aanwezig)
+                    sshagent(['key-opdracht6']) {
+                        sh """
+                            ssh ${PROD_SERVER} 'docker stop ${CONTAINER_NAME} || true'
+                            ssh ${PROD_SERVER} 'docker rm ${CONTAINER_NAME} || true'
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Start Prod') {
+            steps {
+                script {
+                    // Start de nieuwe container op de remote server
+                    sshagent(['key-opdracht6']) {
+                        sh """
+                            ssh ${PROD_SERVER} 'docker run -d --name ${CONTAINER_NAME} -p ${DOCKER_PORT}:80 ${DOCKER_IMAGE}'
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Test Prod') {
+            steps {
+                script {
+                    // Test of de applicatie draait door middel van een curl commando
+                    def statusCode = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://${PROD_SERVER}:${DOCKER_PORT}", returnStdout: true).trim()
+                    
+                    if (statusCode == '200') {
+                        echo "Applicatie draait correct op de productie server."
+                    } else {
+                        error "De applicatie is niet beschikbaar (statuscode: ${statusCode})."
+                    }
+                }
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                script {
+                    // Verwijder oude Docker containers en ongebruikte images om resources vrij te maken
+                    sshagent(['key-opdracht6']) {
+                        sh """
+                            ssh ${PROD_SERVER} 'docker system prune -f'
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline afgerond'
+        }
+        success {
+            echo 'Deploy naar productie is geslaagd!'
+        }
+        failure {
+            echo 'Er is een fout opgetreden bij de productie deploy.'
         }
     }
 }
