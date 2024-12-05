@@ -55,7 +55,7 @@ pipeline {
             steps {
                 script {
                     // Test if the application is running by sending a curl request to the VM's port 3000
-                    def statusCode = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://${PROD_SERVER}:${DOCKER_PORT}", returnStdout: true).trim()
+                    def statusCode = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://3.91.218.68:3000", returnStdout: true).trim()
                     
                     if (statusCode == '200') {
                         echo "Application is running correctly on the production server."
