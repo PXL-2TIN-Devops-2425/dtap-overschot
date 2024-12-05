@@ -1,10 +1,91 @@
 pipeline {
     agent any
+
+    environment {
+        PROD_SERVER = 'ubuntu@54.234.226.27' // productie public IP 
+        DOCKER_IMAGE = 'timohubner431/my-app:latest' // Docker Hub afbeelding naam
+        CONTAINER_NAME = 'prod-container' // Naam van de container
+        REMOTE_PORT = '80' // Poort waarop de app draait
+    }
+
     stages {
-        stage('dtap production') {
+        stage('Cleanup') {
             steps {
-                echo "good luck..."
+                script {
+                    // Verbind via SSH met de remote server om oude containers, netwerken en ongebruikte afbeeldingen te verwijderen
+                    sshagent(['key-opdracht6']) {
+                        // Add the host key to known_hosts (avoid SSH verification issues)
+                        sh "ssh-keyscan -H 54.234.226.27 >> ~/.ssh/known_hosts"
+
+                        // Verwijder oude containers die niet meer in gebruik zijn
+                        sh """
+                            ssh ${PROD_SERVER} 'docker rm -f ${CONTAINER_NAME} || true'
+                        """
+                        // Verwijder ongebruikte afbeeldingen, niet gebruikte containers
+                        sh """
+                            ssh ${PROD_SERVER} 'docker image prune -af'
+                        """
+                        // Verwijder ongebruikte volumes (als het nodig zou zijn)
+                        sh """
+                            ssh ${PROD_SERVER} 'docker volume prune -f'
+                        """
+                    }
+                }
             }
+        }
+
+        stage('Deploy Prod') {
+            steps {
+                script {
+                    // Verbind via SSH met de remote server en stop de oude container
+                    sshagent(['key-opdracht6']) {
+                        // Cleanup: Verwijder oude container als die bestaat
+                        sh """
+                            ssh ${PROD_SERVER} 'docker rm -f ${CONTAINER_NAME} || true'
+                        """
+                        // Download de laatste versie van de docker container vanaf Docker Hub
+                        sh """
+                            ssh ${PROD_SERVER} 'docker pull ${DOCKER_IMAGE}'
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Start Prod') {
+            steps {
+                script {
+                    // Verbind via SSH en start de container op de remote server
+                    sshagent(['key-opdracht6']) {
+                        sh """
+                            ssh ${PROD_SERVER} 'docker run -d --name ${CONTAINER_NAME} -p ${REMOTE_PORT}:3000 ${DOCKER_IMAGE}'
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Test Prod') {
+            steps {
+                script {
+                    // Test of de applicatie draait door een HTTP check
+                    def response = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://54.234.226.27:${REMOTE_PORT}", returnStdout: true).trim()
+                    if (response == '200') {
+                        echo 'Applicatie draait succesvol op productie server.'
+                    } else {
+                        error "Applicatie is niet bereikbaar op de productie server. HTTP status: ${response}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Deployment naar productie succesvol.'
+        }
+        failure {
+            echo 'Deployment naar productie is mislukt.'
         }
     }
 }
