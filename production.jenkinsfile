@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        PROD_SERVER = 'ubuntu@3.91.218.68' // productie public IP 
+        PROD_SERVER = 'ubuntu@54.234.226.27' // productie public IP 
         DOCKER_IMAGE = 'timohubner431/my-app:latest' // Docker Hub afbeelding naam
         CONTAINER_NAME = 'prod-container' // Naam van de container
         REMOTE_PORT = '80' // Poort waarop de app draait
@@ -66,7 +66,7 @@ pipeline {
             steps {
                 script {
                     // Test of de applicatie draait door een HTTP check
-                    def response = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://3.91.218.68:${REMOTE_PORT}", returnStdout: true).trim()
+                    def response = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://54.234.226.27:${REMOTE_PORT}", returnStdout: true).trim()
                     if (response == '200') {
                         echo 'Applicatie draait succesvol op productie server.'
                     } else {
