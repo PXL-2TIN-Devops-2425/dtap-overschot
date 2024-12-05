@@ -10,84 +10,62 @@ pipeline {
         DOCKER_TAG = "latest"
     }
     stages {
-        stage('Clean Workspace') {
+        stage('Cleanup') {
             steps {
-                deleteDir()  // Clean the workspace before starting
+                deleteDir()  // Verwijdert de inhoud van de workspace
             }
         }
-        stage('Fetching Source') {
-            steps {
-                checkout([$class: 'GitSCM', 
-                          branches: [[name: '*/main']], 
-                          userRemoteConfigs: [[url: 'git@github.com:TimoHubner444/calculator-app-finished.git', 
-                                               credentialsId: 'ssh-key-git']]])
-            }
-        }
-        stage('Install Dependencies') {
-            steps {
-                sh 'npm install'  // Install dependencies from package.json
-            }
-        }
-        stage('Unittests') {
-            steps {
-                sh 'npm test'  // Run unit tests
-                junit '**/jest-junit.xml'  // Archive test results
-            }
-        }
-        stage('Create Bundle') {
-            steps {
-                sh '''
-                mkdir -p bundle
-                cp -r app.js routes.js server.js package.json public bundle/
-                rm -rf bundle/.git bundle/.gitignore bundle/README.md  
-                zip -r bundle.zip bundle  // Create a zip bundle of the app
-                '''
-            }
-        }
-        stage('Build Docker Image') {
+        stage('Install dependencies') {
             steps {
                 script {
-                    // Build Docker image
-                    sh "docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} ."
+                    // Gebruik van de vooraf gedefinieerde Node.js tool
+                    sh 'npm install'
                 }
             }
         }
-        stage('Push Docker Image to DockerHub') {
+        stage('Clone Repository') {
+            steps {
+                // Klonen van de GitHub repository naar de Jenkins workspace
+                git https://github.com/TimoHubner444/calculator-app-finished.git'
+            }
+        }
+        
+
+        stage('Build artifact') {
             steps {
                 script {
-                    // Log in to DockerHub and push the image
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh """
-                        echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin
-                        docker push ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}
-                        """
+                    // Zorg ervoor dat je een werkende Dockerfile hebt voordat je de container bouwt
+                    sh 'docker build -t mijn-image .'
+                }
+            }
+        }
+        stage('Login to Docker Hub') {
+            steps {
+                script {
+                    // Login naar Docker Hub met opgeslagen credentials
+                    docker.withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
                     }
                 }
             }
         }
-        stage('Deployment') {
+        stage('Push Artifact') {
             steps {
                 script {
-                    sh '''
-                    docker pull ${DOCKER_IMAGE}
-                    docker run -d -p 3000:3000 ${DOCKER_IMAGE}
-                    '''
+                    // Tag de image met de naam van de Docker Hub repository van je teamgenoot
+                    sh 'docker tag myapp teamgenoot123/calculator-app:latest'
+
+                    // Push de image naar Docker Hub
+                    sh 'docker push timohubner431/my-app:latest'
                 }
             }
         }
+        stage('Deployment') {
+                    steps {
+                        sh 'docker run -d -p 3000:3000 timohubner431/my-app:latest'
+                    }
+                }
+
+        }    
     }
-    post {
-        success {
-            archiveArtifacts artifacts: 'bundle.zip', fingerprint: true  // Archive the generated bundle
-        }
-        failure {
-            script {
-                sh 'echo "Pipeline attempt failed on $(date)" >> ${ERROR_LOG}'  // Log errors
-            }
-        }
-        always {
-            cleanWs()  // Clean up the workspace after the pipeline run
-        }
-    }
-}
 
