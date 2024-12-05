@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     environment {
-        // Definieer de variabelen voor de server en Docker image
+        // Define the server and Docker image variables
         PROD_SERVER = 'ubuntu@3.91.218.68'
         DOCKER_IMAGE = 'timohubner431/my-app:latest'
-        DOCKER_PORT = '80'
-        CONTAINER_NAME = 'prod-container'  // Naam van de Docker container
+        DOCKER_PORT = '3000' // Update to match the app's running port inside the container
+        CONTAINER_NAME = 'prod-container'  // Name of the Docker container
     }
 
     stages {
@@ -14,7 +14,7 @@ pipeline {
             steps {
                 script {
                     sh 'ssh-keyscan -H 3.91.218.68 >> ~/.ssh/known_hosts'
-                    // Haal de laatste versie van de Docker container
+                    // Pull the latest version of the Docker container
                     sshagent(['key-opdracht6']) {
                         sh """
                             ssh ${PROD_SERVER} 'docker pull ${DOCKER_IMAGE}'
@@ -27,7 +27,7 @@ pipeline {
         stage('Stop and Remove Old Container') {
             steps {
                 script {
-                    // Stop en verwijder een oude container (indien aanwezig)
+                    // Stop and remove any existing container (if present)
                     sshagent(['key-opdracht6']) {
                         sh """
                             ssh ${PROD_SERVER} 'docker stop ${CONTAINER_NAME} || true'
@@ -41,10 +41,10 @@ pipeline {
         stage('Start Prod') {
             steps {
                 script {
-                    // Start de nieuwe container op de remote server
+                    // Start the new container on the remote server
                     sshagent(['key-opdracht6']) {
                         sh """
-                            ssh ${PROD_SERVER} 'docker run -d --name ${CONTAINER_NAME} -p ${DOCKER_PORT}:80 ${DOCKER_IMAGE}'
+                            ssh ${PROD_SERVER} 'docker run -d --name ${CONTAINER_NAME} -p ${DOCKER_PORT}:${DOCKER_PORT} ${DOCKER_IMAGE}'
                         """
                     }
                 }
@@ -54,13 +54,13 @@ pipeline {
         stage('Test Prod') {
             steps {
                 script {
-                    // Test of de applicatie draait door middel van een curl commando
+                    // Test if the application is running by sending a curl request to the VM's port 3000
                     def statusCode = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://${PROD_SERVER}:${DOCKER_PORT}", returnStdout: true).trim()
                     
                     if (statusCode == '200') {
-                        echo "Applicatie draait correct op de productie server."
+                        echo "Application is running correctly on the production server."
                     } else {
-                        error "De applicatie is niet beschikbaar (statuscode: ${statusCode})."
+                        error "The application is not available (status code: ${statusCode})."
                     }
                 }
             }
@@ -69,7 +69,7 @@ pipeline {
         stage('Cleanup') {
             steps {
                 script {
-                    // Verwijder oude Docker containers en ongebruikte images om resources vrij te maken
+                    // Remove old Docker containers and unused images to free up resources
                     sshagent(['key-opdracht6']) {
                         sh """
                             ssh ${PROD_SERVER} 'docker system prune -f'
@@ -82,13 +82,13 @@ pipeline {
 
     post {
         always {
-            echo 'Pipeline afgerond'
+            echo 'Pipeline completed.'
         }
         success {
-            echo 'Deploy naar productie is geslaagd!'
+            echo 'Deployment to production was successful!'
         }
         failure {
-            echo 'Er is een fout opgetreden bij de productie deploy.'
+            echo 'An error occurred during the production deployment.'
         }
     }
 }
