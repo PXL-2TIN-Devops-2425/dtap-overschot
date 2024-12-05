@@ -6,13 +6,13 @@ pipeline {
     environment {
         HOME_FOLDER = "/var/lib/jenkins"
         ERROR_LOG = "${HOME_FOLDER}/jenkinserrorlog"
-        DOCKER_IMAGE_NAME = "timohubner431/my-app"  // Make sure the name is correct
+        DOCKER_IMAGE_NAME = "timohubner431/my-app"  
         DOCKER_TAG = "latest"
     }
     stages {
         stage('Cleanup') {
             steps {
-                deleteDir()  // Cleans the workspace
+                deleteDir()  
             }
         }
 
@@ -24,8 +24,7 @@ pipeline {
 
         stage('Install dependencies') {
             steps {
-                script {
-                    // Use predefined Node.js tool
+                script {  
                     sh 'npm install'
                 }
             }
@@ -34,7 +33,6 @@ pipeline {
         stage('Build artifact') {
             steps {
                 script {
-                    // Ensure you have a working Dockerfile before building the container
                     sh "docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} ."
                 }
             }
@@ -43,7 +41,6 @@ pipeline {
         stage('Login to Docker Hub') {
             steps {
                 script {
-                    // Use withCredentials to pass Docker Hub credentials securely
                     withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                         sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
                     }
@@ -54,10 +51,8 @@ pipeline {
         stage('Push Artifact') {
             steps {
                 script {
-                    // Tag the image with the Docker Hub repository name
                     sh "docker tag ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
 
-                    // Push the image to Docker Hub
                     sh "docker push ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}"
                 }
             }
@@ -85,6 +80,5 @@ pipeline {
                 }
             }
         }
-
     }
 }
