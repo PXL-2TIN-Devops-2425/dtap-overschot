@@ -18,8 +18,7 @@ pipeline {
         
         stage('Clone Repository') {
             steps {
-                // Klonen van de GitHub repository naar de Jenkins workspace
-                git 'https://github.com/TimoHubner444/calculator-app-finished.git'
+                git branch: 'main', url: 'https://github.com/TimoHubner444/calculator-app-finished.git'
             }
         }
         
