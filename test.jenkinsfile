@@ -4,54 +4,69 @@ pipeline {
         nodejs 'testenvnode' 
     }
     environment {
-        DOCKER_IMAGE = 'timohubner431/my-app'  // Replace with actual DockerHub repository
+        HOME_FOLDER = "/var/lib/jenkins"
+        ERROR_LOG = "${HOME_FOLDER}/jenkinserrorlog"
+        DOCKER_IMAGE_NAME = "timohubner431/my-app"
+        DOCKER_TAG = "latest"
     }
-    
     stages {
-
-        stage('test'){
+        stage('Clean Workspace') {
             steps {
-                echo 'hello'
+                deleteDir()  // Clean the workspace before starting
             }
         }
-        stage('cleanup') {
+        stage('Fetching Source') {
             steps {
-                // Clean the workspace directory before starting
-                deleteDir()
+                checkout([$class: 'GitSCM', 
+                          branches: [[name: '*/main']], 
+                          userRemoteConfigs: [[url: 'git@github.com:TimoHubner444/calculator-app-finished.git', 
+                                               credentialsId: 'ssh-key-git']]])
             }
         }
-        
-        stage('Install dependencies') {
+        stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                sh 'npm install'  // Install dependencies from package.json
             }
         }
-        
-        stage('Build artifact') {
+        stage('Unittests') {
             steps {
-                // Build the Docker image
+                sh 'npm test'  // Run unit tests
+                junit '**/jest-junit.xml'  // Archive test results
+            }
+        }
+        stage('Create Bundle') {
+            steps {
+                sh '''
+                mkdir -p bundle
+                cp -r app.js routes.js server.js package.json public bundle/
+                rm -rf bundle/.git bundle/.gitignore bundle/README.md  
+                zip -r bundle.zip bundle  // Create a zip bundle of the app
+                '''
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
                 script {
-                    sh '''
-                    docker build -t ${DOCKER_IMAGE} .
-                    '''
+                    // Build Docker image
+                    sh "docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} ."
                 }
             }
         }
-        
-        stage('Push artifact') {
+        stage('Push Docker Image to DockerHub') {
             steps {
-                // Push the image to DockerHub
                 script {
-                    withDockerRegistry([credentialsId: 'dockerhub-credentials', url: 'https://index.docker.io/v1/']) {
-                        sh "docker push ${DOCKER_IMAGE}"
+                    // Log in to DockerHub and push the image
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh """
+                        echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin
+                        docker push ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}
+                        """
                     }
                 }
             }
         }
-        
         stage('Deployment') {
             steps {
-                // Deploy Docker container on the test server (on port 3000)
                 script {
                     sh '''
                     docker pull ${DOCKER_IMAGE}
@@ -61,11 +76,18 @@ pipeline {
             }
         }
     }
-    
     post {
+        success {
+            archiveArtifacts artifacts: 'bundle.zip', fingerprint: true  // Archive the generated bundle
+        }
+        failure {
+            script {
+                sh 'echo "Pipeline attempt failed on $(date)" >> ${ERROR_LOG}'  // Log errors
+            }
+        }
         always {
-            // Clean up the environment after the pipeline execution
-            cleanWs()
+            cleanWs()  // Clean up the workspace after the pipeline run
         }
     }
 }
+
