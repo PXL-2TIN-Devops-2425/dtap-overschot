@@ -13,6 +13,7 @@ pipeline {
         stage('Deploy Prod') {
             steps {
                 script {
+                    sh 'ssh-keyscan -H 3.91.218.68 >> ~/.ssh/known_hosts'
                     // Haal de laatste versie van de Docker container
                     sshagent(['key-opdracht6']) {
                         sh """
